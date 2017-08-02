@@ -25,7 +25,6 @@ import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.POST;
@@ -34,7 +33,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
@@ -61,8 +59,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
 
     @POST
     @Produces(MediaType.APPLICATION_JSON)
-    public Response oauth2(@Valid final Payload payload,
-                           @Context final HttpServletRequest request) throws IOException {
+    public Response oauth2(@Valid final Payload payload) throws IOException {
         // Step 1. Exchange authorization code for access token.
         final MultivaluedStringMap accessData = new MultivaluedStringMap();
         accessData.add(CLIENT_ID_KEY, payload.getClientId());
