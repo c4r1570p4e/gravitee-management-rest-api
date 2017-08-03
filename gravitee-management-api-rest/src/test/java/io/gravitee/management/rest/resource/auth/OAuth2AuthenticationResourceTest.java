@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.gravitee.management.rest.resource.auth;
 
 import com.auth0.jwt.JWTVerifier;
