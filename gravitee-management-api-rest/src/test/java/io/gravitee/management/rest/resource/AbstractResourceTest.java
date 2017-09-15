@@ -21,6 +21,7 @@ import io.gravitee.management.security.authentication.AuthenticationProviderMana
 import io.gravitee.management.service.ApiService;
 import io.gravitee.management.service.ApplicationService;
 import io.gravitee.management.service.FetcherService;
+import io.gravitee.management.service.GroupService;
 import io.gravitee.management.service.MembershipService;
 import io.gravitee.management.service.PageService;
 import io.gravitee.management.service.PolicyService;

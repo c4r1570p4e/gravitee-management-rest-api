@@ -4,5 +4,8 @@
   "given_name":"Jane",
   "family_name":"Doe",
   "email":"janedoe@example.com",
-  "picture":"http://example.com/janedoe/me.jpg"
+  "picture":"http://example.com/janedoe/me.jpg",
+  "identity_provider_id": "idp_5",
+  "job_id": "API_BREAKER",
+  "service_id": "585252525"
 }
