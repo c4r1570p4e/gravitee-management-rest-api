@@ -56,9 +56,12 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
@@ -154,7 +157,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
                 userService.create(newUser, true);
             } else {
                 //can fail if a group in config does not exist in gravitee --> HTTP 500
-                List<GroupEntity> groupsToAdd = getGroupsToAddUser(mappings, userInfo);
+                Set<GroupEntity> groupsToAdd = getGroupsToAddUser(mappings, userInfo);
 
                 userService.create(newUser, false);
 
@@ -172,7 +175,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         return connectUser(username);
     }
 
-    private void addUserToApiAndAppGroupsWithDefaultRole(NewExternalUserEntity newUser, List<GroupEntity> groupsToAdd) {
+    private void addUserToApiAndAppGroupsWithDefaultRole(NewExternalUserEntity newUser, Collection<GroupEntity> groupsToAdd) {
         List<RoleEntity> roleEntities = roleService.findDefaultRoleByScopes(RoleScope.API,RoleScope.APPLICATION);
 
         //add groups to user
@@ -183,8 +186,8 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         }
     }
 
-    private List<GroupEntity> getGroupsToAddUser(List<Mapping> mappings, String userInfo) {
-        List<GroupEntity> groupsToAdd = new ArrayList<>();
+    private Set<GroupEntity> getGroupsToAddUser(List<Mapping> mappings, String userInfo) {
+        Set<GroupEntity> groupsToAdd = new HashSet<>();
 
         for (Mapping mapping: mappings) {
 
