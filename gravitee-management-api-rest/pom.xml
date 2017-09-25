@@ -178,12 +178,6 @@
 	</build>
 
 	<dependencies>
-		<!-- FIXME : A VIRER -->
-		<dependency>
-			<groupId>io.gravitee.gateway</groupId>
-			<artifactId>gravitee-gateway-el</artifactId>
-			<version>1.10.0-SNAPSHOT</version>
-		</dependency>
 
 		<!-- Gravitee Management dependencies-->
 		<dependency>
@@ -211,6 +205,11 @@
 		<dependency>
 			<groupId>io.gravitee.common</groupId>
 			<artifactId>gravitee-common</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>io.gravitee.el</groupId>
+			<artifactId>gravitee-expression-language</artifactId>
 		</dependency>
 
 		<!-- Spring dependencies -->

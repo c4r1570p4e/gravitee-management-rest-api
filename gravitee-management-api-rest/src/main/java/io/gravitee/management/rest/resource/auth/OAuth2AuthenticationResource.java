@@ -16,7 +16,8 @@
 package io.gravitee.management.rest.resource.auth;
 
 import io.gravitee.common.http.MediaType;
-import io.gravitee.gateway.el.function.JsonPathFunction;
+import io.gravitee.el.SpelTemplateEngine;
+import io.gravitee.el.function.JsonPathFunction;
 import io.gravitee.management.model.GroupEntity;
 import io.gravitee.management.model.NewExternalUserEntity;
 import io.gravitee.management.model.RoleEntity;
@@ -35,9 +36,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.expression.Expression;
-import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.ParseException;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.util.StringUtils;
 
@@ -157,7 +156,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
                 userService.create(newUser, true);
             } else {
                 //can fail if a group in config does not exist in gravitee --> HTTP 500
-                Set<GroupEntity> groupsToAdd = getGroupsToAddUser(mappings, userInfo);
+                Set<GroupEntity> groupsToAdd = getGroupsToAddUser(username, mappings, userInfo);
 
                 userService.create(newUser, false);
 
@@ -186,7 +185,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         }
     }
 
-    private Set<GroupEntity> getGroupsToAddUser(List<Mapping> mappings, String userInfo) {
+    private Set<GroupEntity> getGroupsToAddUser(String userName, List<Mapping> mappings, String userInfo) {
         Set<GroupEntity> groupsToAdd = new HashSet<>();
 
         for (Mapping mapping: mappings) {
@@ -199,8 +198,11 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
             context.registerFunction("jsonPath", BeanUtils.resolveSignature("evaluate", JsonPathFunction.class));
             context.setVariables(variables);
 
-            boolean match = mapping.getCondition().getValue(context, boolean.class);
+            SpelTemplateEngine spelTemplateEngine = new SpelTemplateEngine();
+            spelTemplateEngine.getTemplateContext().setVariable("profile",userInfo);
+            boolean match = spelTemplateEngine.getValue(mapping.getCondition(), boolean.class);
 
+            trace(userName, match,mapping);
 
             //get groups
             if(match) {
@@ -208,10 +210,10 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
                     List<GroupEntity> groupEntities = groupService.findByName(groupName);
 
                     if(groupEntities.isEmpty()) {
-                        LOGGER.error("Unable to create oauth2 user, missing group : {}", groupName);
+                        LOGGER.error("Unable to create user, missing group in repository : {}", groupName);
                         throw new InternalServerErrorException();
                     } else if (groupEntities.size() > 1) {
-                        LOGGER.warn("There's more than a group found for name : {}", groupName);
+                        LOGGER.warn("There's more than a group found in repository for name : {}", groupName);
                     }
 
                     GroupEntity groupEntity = groupEntities.get(0);
@@ -220,6 +222,16 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
             }
         }
         return groupsToAdd;
+    }
+
+    private void trace(String userName, boolean match, Mapping mapping) {
+        if(LOGGER.isDebugEnabled()) {
+            if(match) {
+                LOGGER.debug("the expression {} match on {} user's info ", mapping.getCondition().getExpressionString(), userName);
+            } else {
+                LOGGER.debug("the expression {} didn't match {} on user's info ", mapping.getCondition().getExpressionString(), userName);
+            }
+        }
     }
 
     private RoleScope mapScope(io.gravitee.management.model.permissions.RoleScope scope) {
@@ -232,7 +244,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
 
     private List<Mapping> getGroupsMappings(Map<String, Object> configuration) {
 
-        ExpressionParser parser = new SpelExpressionParser();
+        SpelTemplateEngine spelTemplateEngine = new SpelTemplateEngine();
         List<Mapping> result = new ArrayList<>();
 
         int idx = 0;
@@ -247,7 +259,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
 
                 Expression expr;
                 try {
-                    expr = parser.parseExpression(condition.trim());
+                    expr = spelTemplateEngine.parseExpression(condition.trim());
                 } catch (ParseException pe) {
                     LOGGER.error("Error when parsing group mapping configuration",pe);
                     throw new InternalServerErrorException();
@@ -256,6 +268,11 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
                 List<String> groupNames = parseGroupNames(configuration, path);
 
                 Mapping mapping = new Mapping(expr,groupNames);
+
+                if(LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Expression {} give groups {}", condition, groupNames.toString());
+                }
+
                 result.add(mapping);
                 idx++;
             } else {

@@ -490,10 +490,6 @@ public class OAuth2AuthenticationResourceTest extends AbstractResourceTest {
 
     }
 
-    // FIXME in JsonPathFunction with :
-    //Configuration conf2 = conf.addOptions(Option.DEFAULT_PATH_LEAF_TO_NULL);
-    //String gender0 = JsonPath.using(conf2).parse(json).read("$[0]['gender']");
-    //https://github.com/json-path/JsonPath
     @Test
     public void shouldConnectNewUserWithNoMatchingGroupsMappingFromUserInfo() throws Exception {
 
@@ -660,14 +656,14 @@ public class OAuth2AuthenticationResourceTest extends AbstractResourceTest {
 
     private void mockGroupsMapping() {
 
-        getConfiguration().put("groups[0].mapping.condition","#jsonPath(#profile, '$.identity_provider_id') == 'idp_5' && #jsonPath(#profile, '$.job_id') != 'API_BREAKER'");
+        getConfiguration().put("groups[0].mapping.condition","{#jsonPath(#profile, '$.identity_provider_id') == 'idp_5' && #jsonPath(#profile, '$.job_id') != 'API_BREAKER'}");
         getConfiguration().put("groups[0].mapping.values[0]","Example group");
         getConfiguration().put("groups[0].mapping.values[1]","soft user");
 
-        getConfiguration().put("groups[1].mapping.condition","#jsonPath(#profile, '$.identity_provider_id') == 'idp_6'");
+        getConfiguration().put("groups[1].mapping.condition","{#jsonPath(#profile, '$.identity_provider_id') == 'idp_6'}");
         getConfiguration().put("groups[1].mapping.values[0]","Others");
 
-        getConfiguration().put("groups[2].mapping.condition","#jsonPath(#profile, '$.job_id') != 'API_BREAKER'");
+        getConfiguration().put("groups[2].mapping.condition","{#jsonPath(#profile, '$.job_id') != 'API_BREAKER'}");
         getConfiguration().put("groups[2].mapping.values[0]","Api consumer");
     }
 
@@ -677,10 +673,10 @@ public class OAuth2AuthenticationResourceTest extends AbstractResourceTest {
         getConfiguration().put("groups[0].mapping.values[0]","Example group");
         getConfiguration().put("groups[0].mapping.values[1]","soft user");
 
-        getConfiguration().put("groups[1].mapping.condition","#jsonPath(#profile, '$.identity_provider_id') == 'idp_6'");
+        getConfiguration().put("groups[1].mapping.condition","{#jsonPath(#profile, '$.identity_provider_id') == 'idp_6'}");
         getConfiguration().put("groups[1].mapping.values[0]","Others");
 
-        getConfiguration().put("groups[2].mapping.condition","#jsonPath(#profile, '$.job_id') != 'API_BREAKER'");
+        getConfiguration().put("groups[2].mapping.condition","{#jsonPath(#profile, '$.job_id') != 'API_BREAKER'}");
         getConfiguration().put("groups[2].mapping.values[0]","Api consumer");
     }
 
