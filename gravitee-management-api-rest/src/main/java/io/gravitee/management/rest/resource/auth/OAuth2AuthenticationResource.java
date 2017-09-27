@@ -17,11 +17,13 @@ package io.gravitee.management.rest.resource.auth;
 
 import io.gravitee.common.http.MediaType;
 import io.gravitee.el.SpelTemplateEngine;
-import io.gravitee.el.function.JsonPathFunction;
 import io.gravitee.management.model.GroupEntity;
 import io.gravitee.management.model.NewExternalUserEntity;
 import io.gravitee.management.model.RoleEntity;
 import io.gravitee.management.model.UpdateUserEntity;
+import io.gravitee.management.rest.resource.auth.oauth2.ExpressionMapping;
+import io.gravitee.management.rest.resource.auth.oauth2.ServerConfiguration;
+import io.gravitee.management.rest.resource.auth.oauth2.ServerConfigurationParser;
 import io.gravitee.management.security.authentication.AuthenticationProvider;
 import io.gravitee.management.service.GroupService;
 import io.gravitee.management.service.MembershipService;
@@ -33,13 +35,9 @@ import io.swagger.annotations.Api;
 import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.expression.Expression;
-import org.springframework.expression.ParseException;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
-import org.springframework.util.StringUtils;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.validation.Valid;
@@ -54,9 +52,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -86,10 +82,19 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
     @Autowired
     protected MembershipService membershipService;
 
+    private ServerConfigurationParser serverConfigurationParser = new ServerConfigurationParser();
+
     private Client client;
+
+    private ServerConfiguration serverConfiguration;
 
     public OAuth2AuthenticationResource() {
         this.client = ClientBuilder.newClient();
+    }
+
+    @PostConstruct
+    public void init() {
+        serverConfiguration = serverConfigurationParser.parseConfiguration(authenticationProvider.configuration());
     }
 
     @POST
@@ -99,23 +104,22 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         final MultivaluedStringMap accessData = new MultivaluedStringMap();
         accessData.add(CLIENT_ID_KEY, payload.getClientId());
         accessData.add(REDIRECT_URI_KEY, payload.getRedirectUri());
-        accessData.add(CLIENT_SECRET, (String) authenticationProvider.configuration().get("clientSecret"));
+        accessData.add(CLIENT_SECRET, serverConfiguration.getClientSecret());
         accessData.add(CODE_KEY, payload.getCode());
         accessData.add(GRANT_TYPE_KEY, AUTH_CODE);
-        Response response = client.target((String) authenticationProvider.configuration().get("tokenEndpoint"))
+        Response response = client.target(serverConfiguration.getTokenEndpoint())
                 .request(javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE)
                 .post(Entity.form(accessData));
         accessData.clear();
 
         // Step 2. Retrieve profile information about the current user.
-        final String accessToken = (String) getResponseEntity(response).get(
-                (String) authenticationProvider.configuration().get("accessTokenProperty"));
+        final String accessToken = (String) getResponseEntity(response).get(serverConfiguration.getAccessTokenProperty());
         response = client
-                .target((String) authenticationProvider.configuration().get("userInfoEndpoint"))
+                .target(serverConfiguration.getUserInfoEndpoint())
                 .request(javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE)
                 .header(HttpHeaders.AUTHORIZATION,
                         String.format(
-                                (String) authenticationProvider.configuration().get("authorizationHeader"),
+                                serverConfiguration.getAuthorizationHeader(),
                                 accessToken))
                 .get();
 
@@ -132,7 +136,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
 
         Map<String, Object> userInfosAsMap = getEntity(userInfo);
 
-        String username = (String) userInfosAsMap.get(authenticationProvider.configuration().get("mapping.email"));
+        String username = (String) userInfosAsMap.get(serverConfiguration.getUserMapping().getEmail());
 
         if (username == null) {
             throw new BadRequestException("No public email linked to your account");
@@ -145,12 +149,12 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
             final NewExternalUserEntity newUser = new NewExternalUserEntity();
             newUser.setUsername(username);
             newUser.setSource(AuthenticationSource.OAUTH2.getName());
-            newUser.setSourceId((String) userInfosAsMap.get(authenticationProvider.configuration().get("mapping.id")));
-            newUser.setLastname((String) userInfosAsMap.get(authenticationProvider.configuration().get("mapping.lastname")));
-            newUser.setFirstname((String) userInfosAsMap.get(authenticationProvider.configuration().get("mapping.firstname")));
+            newUser.setSourceId((String) userInfosAsMap.get(serverConfiguration.getUserMapping().getId()));
+            newUser.setLastname((String) userInfosAsMap.get(serverConfiguration.getUserMapping().getLastname()));
+            newUser.setFirstname((String) userInfosAsMap.get(serverConfiguration.getUserMapping().getFirstname()));
             newUser.setEmail(username);
 
-            List<Mapping> mappings = getGroupsMappings(authenticationProvider.configuration());
+            List<ExpressionMapping> mappings = serverConfiguration.getGroupsMapping();
 
             if(mappings.isEmpty()) {
                 userService.create(newUser, true);
@@ -167,7 +171,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         // User refresh
         UpdateUserEntity user = new UpdateUserEntity();
         user.setUsername(username);
-        user.setPicture((String) userInfosAsMap.get(authenticationProvider.configuration().get("mapping.picture")));
+        user.setPicture((String) userInfosAsMap.get(serverConfiguration.getUserMapping().getPicture()));
 
         userService.update(user);
 
@@ -185,24 +189,16 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         }
     }
 
-    private Set<GroupEntity> getGroupsToAddUser(String userName, List<Mapping> mappings, String userInfo) {
+    private Set<GroupEntity> getGroupsToAddUser(String userName, List<ExpressionMapping> mappings, String userInfo) {
         Set<GroupEntity> groupsToAdd = new HashSet<>();
 
-        for (Mapping mapping: mappings) {
-
-            Map<String, Object> variables = new HashMap<>();
-
-            variables.put("profile",userInfo);
-
-            final StandardEvaluationContext context = new StandardEvaluationContext();
-            context.registerFunction("jsonPath", BeanUtils.resolveSignature("evaluate", JsonPathFunction.class));
-            context.setVariables(variables);
+        for (ExpressionMapping mapping: mappings) {
 
             SpelTemplateEngine spelTemplateEngine = new SpelTemplateEngine();
             spelTemplateEngine.getTemplateContext().setVariable("profile",userInfo);
             boolean match = spelTemplateEngine.getValue(mapping.getCondition(), boolean.class);
 
-            trace(userName, match,mapping);
+            trace(userName, match, mapping);
 
             //get groups
             if(match) {
@@ -224,7 +220,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         return groupsToAdd;
     }
 
-    private void trace(String userName, boolean match, Mapping mapping) {
+    private void trace(String userName, boolean match, ExpressionMapping mapping) {
         if(LOGGER.isDebugEnabled()) {
             if(match) {
                 LOGGER.debug("the expression {} match on {} user's info ", mapping.getCondition().getExpressionString(), userName);
@@ -242,84 +238,4 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         }
     }
 
-    private List<Mapping> getGroupsMappings(Map<String, Object> configuration) {
-
-        SpelTemplateEngine spelTemplateEngine = new SpelTemplateEngine();
-        List<Mapping> result = new ArrayList<>();
-
-        int idx = 0;
-        boolean found = true;
-
-        while(found) {
-
-            String path = "groups[" + idx + "].mapping";
-            String condition = (String) configuration.get(path +".condition");
-
-            if(!StringUtils.isEmpty(condition)) {
-
-                Expression expr;
-                try {
-                    expr = spelTemplateEngine.parseExpression(condition.trim());
-                } catch (ParseException pe) {
-                    LOGGER.error("Error when parsing group mapping configuration",pe);
-                    throw new InternalServerErrorException();
-                }
-
-                List<String> groupNames = parseGroupNames(configuration, path);
-
-                Mapping mapping = new Mapping(expr,groupNames);
-
-                if(LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("Expression {} give groups {}", condition, groupNames.toString());
-                }
-
-                result.add(mapping);
-                idx++;
-            } else {
-                found = false;
-            }
-        }
-
-        return result;
-    }
-
-    private List<String> parseGroupNames(Map<String, Object> configuration, String path) {
-
-        List<String> result = new ArrayList<>();
-
-        int idx = 0;
-        boolean found = true;
-
-        while(found) {
-            String groupName = (String)configuration.get(path + ".values[" + idx + "]");
-            if(!StringUtils.isEmpty(groupName)) {
-                result.add(groupName.trim());
-                idx++;
-            } else {
-                found = false;
-            }
-        }
-
-        return result;
-    }
-
-
-
-    private static final class Mapping {
-        private Expression condition;
-        private List<String> groupNames;
-
-        public Mapping(Expression condition, List<String> groupNames) {
-            this.condition = condition;
-            this.groupNames = groupNames;
-        }
-
-        public Expression getCondition() {
-            return condition;
-        }
-
-        public List<String> getGroupNames() {
-            return groupNames;
-        }
-    }
 }

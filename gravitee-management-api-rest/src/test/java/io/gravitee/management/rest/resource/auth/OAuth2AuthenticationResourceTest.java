@@ -105,6 +105,16 @@ public class OAuth2AuthenticationResourceTest extends AbstractResourceTest {
         getConfiguration().remove("mapping.picture");
     }
 
+    private void cleanRolesGroupMapping() {
+        getConfiguration().remove("groups[0].mapping.condition");
+        getConfiguration().remove("groups[0].mapping.values[0]");
+        getConfiguration().remove("groups[0].mapping.values[1]");
+        getConfiguration().remove("groups[1].mapping.condition");
+        getConfiguration().remove("groups[1].mapping.values[0]");
+        getConfiguration().remove("groups[2].mapping.condition");
+        getConfiguration().remove("groups[2].mapping.values[0]");
+    }
+
     private Map<String,Object> getConfiguration() {
         return this.authenticationProviderManager.getIdentityProviders().get(0).configuration();
     }
@@ -446,7 +456,6 @@ public class OAuth2AuthenticationResourceTest extends AbstractResourceTest {
         when(membershipService.addOrUpdateMember(MembershipReferenceType.GROUP, "group_id_4", "janedoe@example.com", RoleScope.APPLICATION, "ADMIN")).thenReturn(mockMemberEntity());
 
 
-
         //mock DB update user picture
         UpdateUserEntity updateUserEntity = mockUpdateUserPicture(createdUser);
 
@@ -680,16 +689,6 @@ public class OAuth2AuthenticationResourceTest extends AbstractResourceTest {
         getConfiguration().put("groups[2].mapping.values[0]","Api consumer");
     }
 
-    private void cleanRolesGroupMapping() {
 
-        getConfiguration().remove("groups[0].mapping.condition");
-        getConfiguration().remove("groups[0].mapping.values[0]");
-        getConfiguration().remove("groups[0].mapping.values[1]");
-        getConfiguration().remove("groups[1].mapping.condition");
-        getConfiguration().remove("groups[1].mapping.values[0]");
-        getConfiguration().remove("groups[2].mapping.condition");
-        getConfiguration().remove("groups[2].mapping.values[0]");
-
-    }
 
 }
