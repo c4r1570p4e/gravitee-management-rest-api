@@ -72,7 +72,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-
+/**
+ * @author Christophe LANNOY (chrislannoy.java at gmail.com)
+ */
 public class OAuth2AuthenticationResourceTest extends AbstractResourceTest {
 
     @Rule

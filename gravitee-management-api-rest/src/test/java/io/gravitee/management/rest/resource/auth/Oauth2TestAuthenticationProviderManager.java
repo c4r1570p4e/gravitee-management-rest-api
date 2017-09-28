@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Created by Christophe on 02/08/2017.
+ * @author Christophe LANNOY (chrislannoy.java at gmail.com)
  */
 class Oauth2TestAuthenticationProviderManager implements AuthenticationProviderManager {
 

@@ -16,14 +16,14 @@
 package io.gravitee.management.rest.resource.auth;
 
 import io.gravitee.common.http.MediaType;
-import io.gravitee.el.SpelTemplateEngine;
+import io.gravitee.el.TemplateEngine;
 import io.gravitee.management.model.GroupEntity;
 import io.gravitee.management.model.NewExternalUserEntity;
 import io.gravitee.management.model.RoleEntity;
 import io.gravitee.management.model.UpdateUserEntity;
+import io.gravitee.management.rest.resource.auth.oauth2.AuthorizationServerConfigurationParser;
 import io.gravitee.management.rest.resource.auth.oauth2.ExpressionMapping;
 import io.gravitee.management.rest.resource.auth.oauth2.ServerConfiguration;
-import io.gravitee.management.rest.resource.auth.oauth2.ServerConfigurationParser;
 import io.gravitee.management.security.authentication.AuthenticationProvider;
 import io.gravitee.management.service.GroupService;
 import io.gravitee.management.service.MembershipService;
@@ -40,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Singleton;
 import javax.validation.Valid;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.InternalServerErrorException;
@@ -63,6 +64,7 @@ import java.util.Set;
  * @author Nicolas GERAUD (nicolas.geraud at graviteesource.com)
  * @author GraviteeSource Team
  */
+@Singleton
 @Path("/auth/oauth2")
 @Api(tags = {"Authentication"})
 public class OAuth2AuthenticationResource extends AbstractAuthenticationResource {
@@ -82,7 +84,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
     @Autowired
     protected MembershipService membershipService;
 
-    private ServerConfigurationParser serverConfigurationParser = new ServerConfigurationParser();
+    private AuthorizationServerConfigurationParser authorizationServerConfigurationParser = new AuthorizationServerConfigurationParser();
 
     private Client client;
 
@@ -94,7 +96,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
 
     @PostConstruct
     public void init() {
-        serverConfiguration = serverConfigurationParser.parseConfiguration(authenticationProvider.configuration());
+        serverConfiguration = authorizationServerConfigurationParser.parseConfiguration(authenticationProvider.configuration());
     }
 
     @POST
@@ -194,9 +196,10 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
 
         for (ExpressionMapping mapping: mappings) {
 
-            SpelTemplateEngine spelTemplateEngine = new SpelTemplateEngine();
-            spelTemplateEngine.getTemplateContext().setVariable("profile",userInfo);
-            boolean match = spelTemplateEngine.getValue(mapping.getCondition(), boolean.class);
+            TemplateEngine templateEngine = TemplateEngine.templateEngine();
+            templateEngine.getTemplateContext().setVariable("profile",userInfo);
+
+            boolean match = templateEngine.getValue(mapping.getCondition(), boolean.class);
 
             trace(userName, match, mapping);
 
@@ -223,9 +226,9 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
     private void trace(String userName, boolean match, ExpressionMapping mapping) {
         if(LOGGER.isDebugEnabled()) {
             if(match) {
-                LOGGER.debug("the expression {} match on {} user's info ", mapping.getCondition().getExpressionString(), userName);
+                LOGGER.debug("the expression {} match on {} user's info ", mapping.getCondition(), userName);
             } else {
-                LOGGER.debug("the expression {} didn't match {} on user's info ", mapping.getCondition().getExpressionString(), userName);
+                LOGGER.debug("the expression {} didn't match {} on user's info ", mapping.getCondition(), userName);
             }
         }
     }

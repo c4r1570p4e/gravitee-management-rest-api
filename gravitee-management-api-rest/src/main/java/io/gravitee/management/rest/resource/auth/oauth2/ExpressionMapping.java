@@ -15,24 +15,22 @@
  */
 package io.gravitee.management.rest.resource.auth.oauth2;
 
-import org.springframework.expression.Expression;
-
 import java.util.List;
 
 /**
- * Created by Christophe on 25/09/2017.
+ * @author Christophe LANNOY (chrislannoy.java at gmail.com)
  */
 public class ExpressionMapping {
 
-    private Expression condition;
+    private String condition;
     private List<String> groupNames;
 
-    public ExpressionMapping(Expression condition, List<String> groupNames) {
+    public ExpressionMapping(String condition, List<String> groupNames) {
         this.condition = condition;
         this.groupNames = groupNames;
     }
 
-    public Expression getCondition() {
+    public String getCondition() {
         return condition;
     }
 

@@ -16,7 +16,7 @@
 package io.gravitee.management.rest.resource.auth.oauth2;
 
 /**
- * Created by Christophe on 25/09/2017.
+ * @author Christophe LANNOY (chrislannoy.java at gmail.com)
  */
 public class UserMapping {
 

@@ -15,24 +15,20 @@
  */
 package io.gravitee.management.rest.resource.auth.oauth2;
 
-import io.gravitee.el.SpelTemplateEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.expression.Expression;
-import org.springframework.expression.ParseException;
 import org.springframework.util.StringUtils;
 
-import javax.ws.rs.InternalServerErrorException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Created by Christophe on 26/09/2017.
+ * @author Christophe LANNOY (chrislannoy.java at gmail.com)
  */
-public class ServerConfigurationParser {
+public class AuthorizationServerConfigurationParser {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ServerConfigurationParser.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationServerConfigurationParser.class);
 
 
     public ServerConfiguration parseConfiguration(Map<String, Object> configuration) {
@@ -72,7 +68,6 @@ public class ServerConfigurationParser {
 
     private List<ExpressionMapping> getGroupsMappings(Map<String, Object> configuration) {
 
-        SpelTemplateEngine spelTemplateEngine = new SpelTemplateEngine();
         List<ExpressionMapping> result = new ArrayList<>();
 
         int idx = 0;
@@ -85,20 +80,12 @@ public class ServerConfigurationParser {
 
             if(!StringUtils.isEmpty(condition)) {
 
-                Expression expr;
-                try {
-                    expr = spelTemplateEngine.parseExpression(condition.trim());
-                } catch (ParseException pe) {
-                    LOGGER.error("Error when parsing group mapping configuration",pe);
-                    throw new InternalServerErrorException();
-                }
-
                 List<String> groupNames = parseGroupNames(configuration, path);
 
-                ExpressionMapping mapping = new ExpressionMapping(expr,groupNames);
+                ExpressionMapping mapping = new ExpressionMapping(condition.trim(),groupNames);
 
                 if(LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("Expression {} give groups {}", condition, groupNames.toString());
+                    LOGGER.debug("Expression {} give groups {}", mapping.getCondition(), mapping.getGroupNames().toString());
                 }
 
                 result.add(mapping);
